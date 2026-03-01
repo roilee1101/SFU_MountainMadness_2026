@@ -1,41 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧠 DualMind  
+### AI-Powered Moral Decision Intelligence  
 
-## Getting Started
+Built for **SFU Mountain Madness Hackathon 2026**
 
-First, run the development server:
+> Every decision reveals a pattern.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 🚀 Overview
+
+**DualMind** is an AI-driven experience that analyzes how users make moral decisions.
+
+Instead of asking what you *believe*, DualMind evaluates what you *choose* under tension.
+
+Users face dilemmas and repeatedly select between two contrasting approaches:
+
+- Rational, ethical, long-term thinking  
+- Self-interested, impulsive, short-term thinking  
+
+After multiple decisions, AI generates a structured psychological profile based on behavioral patterns — not static quiz scoring.
+
+---
+
+## 🎯 Why It Stands Out
+
+Most personality tests rely on fixed scoring systems.
+
+DualMind uses AI to:
+- Interpret decision history dynamically  
+- Detect behavioral tendencies  
+- Generate personalized psychological insights  
+- Return structured JSON for scalable use  
+
+This turns personality analysis into a behavior-driven AI engine.
+
+---
+
+## 🧠 How It Works
+
+1. Present moral dilemma  
+2. AI generates two contrasting responses  
+3. User selects their choice  
+4. Choices accumulate  
+5. Gemini AI produces a deep psychological profile  
+
+Profile includes:
+- Persona name  
+- Dominant trait  
+- Shadow trait  
+- Literary parallel  
+- Personalized insight  
+
+---
+
+## 🏗 Tech Stack
+
+- **Next.js (App Router)**
+- **TypeScript**
+- **Gemini 2.5 Flash**
+- Server-side API architecture
+- Rate limiting + input validation
+
+---
+
+## 🔐 Security Architecture
+
+All AI calls are handled server-side.
+
+```
+Browser → /api/gemini → Server → Gemini API
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- API key stored in environment variables  
+- No client-side exposure  
+- Basic rate limiting to prevent abuse  
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔮 Future Expansion
 
-## Learn More
+- Visual personality analytics  
+- Longitudinal behavior tracking  
+- Multiplayer comparison mode  
+- Research applications in behavioral psychology  
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-
-## API Set-Up
-Add Gemini key:
-.env.local
+Built for **SFU Mountain Madness Hackathon 2026** 🏔️
