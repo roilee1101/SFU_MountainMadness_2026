@@ -1,8 +1,24 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
+<<<<<<< HEAD
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+=======
+// Ensure API key exists
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("Missing GEMINI_API_KEY environment variable");
+}
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+// Safe JSON extractor (prevents demo crashes if model wraps JSON in text)
+>>>>>>> origin
 function extractJSON(text: string) {
   try {
     return JSON.parse(text);
@@ -18,6 +34,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { mode, dilemma, consequencesOn, choices, jekyllCount, hydeCount } = body;
 
+<<<<<<< HEAD
     // ── Final Personality Analysis ─────────────────────────────────────────────
     if (mode === "final") {
       if (!choices || choices.length === 0) {
@@ -63,6 +80,13 @@ Respond ONLY with valid JSON — no markdown code blocks, no extra text:
       if (!result.text) throw new Error("No response text from Gemini");
       const data = extractJSON(result.text);
       return NextResponse.json(data);
+=======
+    if (!dilemma || typeof dilemma !== "string") {
+      return NextResponse.json(
+        { error: "Dilemma is required" },
+        { status: 400 }
+      );
+>>>>>>> origin
     }
 
     // ── Dilemma Jekyll/Hyde Response Generation ────────────────────────────────
@@ -77,11 +101,17 @@ Dilemma: "${dilemma}"
 
 Rules:
 - Create TWO responses:
+<<<<<<< HEAD
   - jekyll: empathetic, ethical, long-term thinking, self-sacrificing.
   - hyde: self-interested, reputation-focused, impulsive, short-term thinking.
 - Hyde must NOT include illegal instructions, violence, or harmful behavior.
 - Keep each advice under 120 words.
 - Respond in English.
+=======
+  - hyde: self-interested, reputation-focused, short-term thinking.
+  - jekyll: empathetic, ethical, long-term thinking.
+- Keep each advice under 50 words, 3-4 sentences.
+>>>>>>> origin
 ${consequencesOn ? "- Include short_term and long_term outcomes." : ""}
 
 Return ONLY valid JSON, no markdown code blocks:
@@ -93,11 +123,23 @@ Return ONLY valid JSON, no markdown code blocks:
     "short_term": "string",
     "long_term": "string"` : ""}
   },
+<<<<<<< HEAD
   "hyde": {
     "title": "string",
     "advice": "string"${consequencesOn ? `,
     "short_term": "string",
     "long_term": "string"` : ""}
+=======
+  "jekyll": {
+    "title": string,
+    "advice": string${
+      consequencesOn
+        ? `,
+    "short_term": string,
+    "long_term": string`
+        : ""
+    }
+>>>>>>> origin
   }
 }
 `;
@@ -107,8 +149,22 @@ Return ONLY valid JSON, no markdown code blocks:
       contents: dilemmaPrompt,
     });
 
+<<<<<<< HEAD
     if (!result.text) throw new Error("No response text from Gemini");
     const data = extractJSON(result.text);
+=======
+    if (!result.text) {
+      throw new Error("No response text from Gemini");
+    }
+
+    const data = extractJSON(result.text);
+
+    // Final validation safeguard
+    if (!data.hyde || !data.jekyll) {
+      throw new Error("Malformed AI response");
+    }
+
+>>>>>>> origin
     return NextResponse.json(data);
 
   } catch (error) {
