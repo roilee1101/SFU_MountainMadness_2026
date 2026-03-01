@@ -123,7 +123,10 @@ export default function InputScreen({
           if (!res.ok) throw new Error(`ElevenLabs STT error ${res.status}`);
           const json = await res.json();
           const text: string = json.text ?? "";
-          if (text.trim()) setDilemma((prev) => (prev.trim() ? prev + " " + text.trim() : text.trim()));
+          if (text.trim()) {
+            const next = dilemma.trim() ? `${dilemma} ${text.trim()}` : text.trim();
+            setDilemma(next);
+          }          
           setMicStatus("idle");
         } catch (err) {
           console.error(err);

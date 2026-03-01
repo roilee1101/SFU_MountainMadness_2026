@@ -4,32 +4,67 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-/* ─────────────────────────── Setup ─────────────────────────── */
+/* ───────────────────────── Rate Limiter ───────────────────────── */
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("Missing GEMINI_API_KEY environment variable");
+const hits = new Map<string, { count: number; reset: number }>();
+
+function rateLimit(ip: string, limit = 20, windowMs = 60_000) {
+  const now = Date.now();
+  const entry = hits.get(ip);
+
+  if (!entry || entry.reset < now) {
+    hits.set(ip, { count: 1, reset: now + windowMs });
+    return true;
+  }
+
+  if (entry.count >= limit) return false;
+
+  entry.count += 1;
+  return true;
 }
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
-/* ───────────────────── Safe JSON Extractor ───────────────────── */
+/* ─────────────────────── Safe JSON Extractor ───────────────────── */
 
 function extractJSON(text: string) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error("Invalid JSON returned from Gemini");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error("No valid JSON found in AI response");
   }
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 /* ─────────────────────────── Handler ─────────────────────────── */
 
 export async function POST(req: Request) {
   try {
+    /* ───── Rate Limit Protection ───── */
+
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+
+    if (!rateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
+
+    /* ───── Validate API Key ───── */
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Server misconfigured" },
+        { status: 500 }
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    /* ───── Parse Body ───── */
+
     const body = await req.json();
     const {
       mode,
@@ -40,10 +75,10 @@ export async function POST(req: Request) {
       hydeCount,
     } = body;
 
-    /* ───────────── FINAL PERSONALITY ANALYSIS ───────────── */
+    /* ───────────────── FINAL PERSONALITY ANALYSIS ───────────────── */
 
     if (mode === "final") {
-      if (!choices || choices.length === 0) {
+      if (!choices || !Array.isArray(choices) || choices.length === 0) {
         return NextResponse.json(
           { error: "Choices are required" },
           { status: 400 }
@@ -107,9 +142,9 @@ Respond ONLY with valid JSON:
 
     /* ───────────── DILEMMA RESPONSE GENERATION ───────────── */
 
-    if (!dilemma || typeof dilemma !== "string") {
+    if (!dilemma || typeof dilemma !== "string" || dilemma.length > 1000) {
       return NextResponse.json(
-        { error: "Dilemma is required" },
+        { error: "Valid dilemma is required (max 1000 chars)" },
         { status: 400 }
       );
     }
