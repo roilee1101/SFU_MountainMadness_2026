@@ -197,7 +197,7 @@ export default function ResultSplit({
           </div>
         </div>
 
-        <p className="flex-1 text-center text-sm italic text-white/40 px-6 truncate max-w-[40%]" title={dilemma}>
+        <p className="flex-1 text-center text-xl italic text-white px-6 truncate max-w-[50%]" title={dilemma}>
           &quot;{dilemma}&quot;
         </p>
 

@@ -163,7 +163,7 @@ export default function InputScreen({
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
-      {/* 1. TOP BAR - Scores & Global Actions */}
+      {/* 1. TOP BAR */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-12">
         <div className="flex gap-10 items-center">
           <div className="flex flex-col">
@@ -190,7 +190,6 @@ export default function InputScreen({
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-white/70 transition-colors">Consequences</span>
           </label>
 
-          {/* 우상단 Finish 버튼 */}
           {hasChoices && (
             <button
               onClick={onFinish}
@@ -209,9 +208,32 @@ export default function InputScreen({
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 pt-44 pb-24">
         <div className="mb-12 text-center">
           <h1 className="text-8xl md:text-9xl font-black tracking-tighter flex items-center justify-center select-none">
-            <span className="text-blue-500 animate-[bounce_5s_infinite]">Jekyll</span>
-            <span className="mx-8 text-2xl font-light italic text-neutral-800 lowercase font-serif font-sans">or</span>
-            <span className="font-serif uppercase tracking-widest text-red-600 animate-[bounce_6s_infinite]">Hyde</span>
+            {/* ────────── [수정됨] Jekyll 부분에 강렬한 파란색 네온 광채 추가 ────────── */}
+            <span 
+              className="text-blue-500 animate-[bounce_5s_infinite] font-sans"
+              style={{
+                textShadow: "0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.6), 0 0 50px rgba(59, 130, 246, 0.4)"
+              }}
+            >
+              Jekyll
+            </span>
+            
+            <span 
+              className="mx-8 text-2xl font-normal not-italic text-white opacity-100 lowercase"
+              style={{ fontFamily: "Arial, sans-serif", letterSpacing: "0.1em" }}
+            >
+              or
+            </span>
+            
+            {/* ────────── [유지] Hyde 부분 강렬한 빨간색 광채 ────────── */}
+            <span 
+              className="font-serif uppercase tracking-widest text-red-600 animate-[bounce_6s_infinite]"
+              style={{
+                textShadow: "0 0 15px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.6), 0 0 50px rgba(239, 68, 68, 0.4)"
+              }}
+            >
+              Hyde
+            </span>
           </h1>
         </div>
 
@@ -227,7 +249,19 @@ export default function InputScreen({
           <div className="mt-6">
             {tab === "custom" ? (
               <div className="w-full">
-                <textarea value={dilemma} onChange={(e) => setDilemma(e.target.value)} placeholder="Describe your inner conflict..." className="h-64 w-full resize-none rounded-[40px] border border-white/5 bg-white/[0.02] p-12 text-2xl text-white placeholder:text-neutral-800 focus:outline-none focus:bg-white/[0.05] transition-all duration-700 shadow-inner" />
+                <textarea 
+                  value={dilemma} 
+                  onChange={(e) => setDilemma(e.target.value)} 
+                  placeholder="Describe your inner conflict..." 
+                  className="h-64 w-full resize-none rounded-[40px] border border-white/10 p-12 text-2xl text-white placeholder:text-neutral-800 
+                             focus:outline-none focus:border-white/20
+                             transition-all duration-700 ease-in-out
+                             bg-gradient-to-r from-blue-950 via-neutral-950 to-red-950
+                             focus:from-blue-900 focus:via-neutral-900 focus:to-red-900
+                             shadow-[-20px_0_70px_-10px_rgba(59,130,246,0.25),20px_0_70px_-10px_rgba(220,38,38,0.25)]
+                             focus:shadow-[-30px_0_100px_-5px_rgba(59,130,246,0.4),30px_0_100px_-5px_rgba(220,38,38,0.4)]
+                             font-serif italic" 
+                />
               </div>
             ) : (
               <div className="rounded-[40px] border border-white/10 bg-white/[0.02] p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -243,7 +277,6 @@ export default function InputScreen({
             )}
           </div>
 
-          {/* 3. GENERATE ACTION */}
           <div className="mt-10 flex items-center justify-center gap-4">
             <button
               onClick={onGenerate}

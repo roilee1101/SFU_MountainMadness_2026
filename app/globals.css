@@ -1,6 +1,7 @@
 /* app/globals.css */
-/* 1. External fonts MUST be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,700;1,900&display=swap');
+
+/* 1. 고전적인 EB Garamond와 현대적인 Inter 조합 */
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;600;800&display=swap');
 
 /* 2. Tailwind follows */
 @import "tailwindcss";
@@ -13,13 +14,35 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* UI/시스템용 산세리프 */
   --font-sans: 'Inter', ui-sans-serif, system-ui;
-  --font-serif: 'Playfair Display', serif;
+  /* 고전적 감성의 EB Garamond */
+  --font-serif: 'EB Garamond', serif;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  /* 기본 서체를 EB Garamond로 설정하여 클래식한 분위기 조성 */
+  font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
+}
+
+/* 스크롤바 디테일 (고전 서적 느낌에 맞춰 얇게) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+/* 텍스트 영역 가독성을 위한 설정 */
+textarea::placeholder {
+  font-family: var(--font-serif);
+  font-style: italic;
+  opacity: 0.3;
 }

@@ -127,7 +127,7 @@ Respond ONLY with valid JSON:
 `;
 
       const result = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         contents: finalPrompt,
       });
 
