@@ -24,10 +24,10 @@ type Props = {
 const FALLBACK: Side = { title: "", advice: "", short_term: "", long_term: "" };
 
 // ─── ElevenLabs Voice IDs ──────────────────────────────────────────────────────
-// Jekyll → "Daniel"  : deep, authoritative British — aristocratic & composed
-// Hyde   → "Callum"  : raw, edgy — chaotic & vulgar
+// Jekyll → custom voice (2p8AJgPi17TU8XmLroeM)
+// Hyde   → "Callum" : raw, edgy — chaotic & vulgar
 const VOICE_IDS = {
-  jekyll: "onwK4e9ZLuTAKqWW03F9", // Daniel  (deep, distinguished British)
+  jekyll: "21m00Tcm4TlvDq8ikWAM", // Custom Jekyll voice
   hyde:   "N2lVS1w4EtoT3dr4eOWO", // Callum  (raw, aggressive — pushed to extremes below)
 };
 
