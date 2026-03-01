@@ -148,7 +148,7 @@ function useVoice(data: Side, type: "jekyll" | "hyde", consequencesOn: boolean) 
     }
   }, [status, buildText, stop, type]);
 
-  return { status, play };
+  return { status, play, stop };
 }
 
 export default function ResultSplit({
@@ -207,7 +207,7 @@ export default function ResultSplit({
 
       <div className="flex h-full w-full">
         {/* Jekyll Panel */}
-        <div role="button" tabIndex={0} onKeyDown={onPanelKeyDown("jekyll")} onClick={() => onPick("jekyll")} onMouseEnter={() => setHovered("jekyll")} onMouseLeave={() => setHovered(null)} className="relative h-full w-1/2 cursor-pointer select-none outline-none">
+        <div role="button" tabIndex={0} onKeyDown={onPanelKeyDown("jekyll")} onClick={() => {jekyllVoice.stop(); hydeVoice.stop();onPick("jekyll")}} onMouseEnter={() => setHovered("jekyll")} onMouseLeave={() => setHovered(null)} className="relative h-full w-1/2 cursor-pointer select-none outline-none">
           <img src="/jekyll.png" alt="Jekyll" className={`absolute bottom-0 left-[-5%] h-[75%] object-contain transition-all duration-700 ${hovered === "jekyll" ? "scale-105 opacity-70 translate-x-10" : "opacity-35 grayscale"}`} />
           <div className="relative z-10 h-full flex flex-col justify-end p-16 max-w-[600px]">
             <div className="flex items-center gap-3 mb-6">
@@ -226,7 +226,7 @@ export default function ResultSplit({
         </div>
 
         {/* Hyde Panel */}
-        <div role="button" tabIndex={0} onKeyDown={onPanelKeyDown("hyde")} onClick={() => onPick("hyde")} onMouseEnter={() => setHovered("hyde")} onMouseLeave={() => setHovered(null)} className="relative h-full w-1/2 cursor-pointer select-none outline-none">
+        <div role="button" tabIndex={0} onKeyDown={onPanelKeyDown("hyde")} onClick={() => {jekyllVoice.stop(); hydeVoice.stop();onPick("hyde")}} onMouseEnter={() => setHovered("hyde")} onMouseLeave={() => setHovered(null)} className="relative h-full w-1/2 cursor-pointer select-none outline-none">
           <img src="/hyde.png" alt="Hyde" className={`absolute bottom-0 right-[-5%] h-[75%] object-contain transition-all duration-700 ${hovered === "hyde" ? "scale-105 opacity-70 -translate-x-10" : "opacity-35 grayscale"}`} />
           <div className="relative z-10 h-full flex flex-col justify-end items-end text-right p-16 max-w-[600px] ml-auto">
             <div className="flex items-center gap-3 mb-6">
