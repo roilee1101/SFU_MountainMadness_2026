@@ -5,15 +5,26 @@ import InputScreen from "@/components/InputScreen";
 import ResultSplit from "@/components/ResultSplit";
 import FinalScreen from "@/components/FinalScreen";
 
+type ChoiceRecord = {
+  dilemma: string;
+  picked: "jekyll" | "hyde";
+  novel?: string;
+};
+
 export default function Page() {
-  /* ---------------- STATE ---------------- */
+  /* ───────────────────────── STATE ───────────────────────── */
 
   const [dilemma, setDilemma] = useState("");
-  const [view, setView] = useState<"input" | "split" | "character" | "final">(
-    "input"
+  const [currentNovel, setCurrentNovel] = useState<string | undefined>(
+    undefined
   );
 
+  const [view, setView] = useState<
+    "input" | "split" | "character" | "final"
+  >("input");
+
   const [scores, setScores] = useState({ jekyll: 0, hyde: 0 });
+  const [choices, setChoices] = useState<ChoiceRecord[]>([]);
   const [consequencesOn, setConsequencesOn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,7 +33,15 @@ export default function Page() {
     hyde: { title: "", advice: "", short_term: "", long_term: "" },
   });
 
-  /* ---------------- AI GENERATION ---------------- */
+  /* ───────────────────── PRESET SELECTION ───────────────────── */
+
+  const handleDilemmaSelect = (prompt: string, novel?: string) => {
+    setDilemma(prompt);
+    setCurrentNovel(novel);
+  };
+
+  /* ───────────────────── AI GENERATION ───────────────────── */
+
   const handleGenerate = async () => {
     if (!dilemma.trim()) return;
 
@@ -42,11 +61,14 @@ export default function Page() {
         return;
       }
 
-      // Safety fallback so UI never breaks
-      const fallback = { title: "", advice: "", short_term: "", long_term: "" };
+      const fallback = {
+        title: "",
+        advice: "",
+        short_term: "",
+        long_term: "",
+      };
 
       setAiData({
-        // if the model ever returns missing fields, we still render
         jekyll: { ...fallback, ...(data.jekyll ?? {}) },
         hyde: { ...fallback, ...(data.hyde ?? {}) },
       });
@@ -59,8 +81,7 @@ export default function Page() {
     }
   };
 
-
-  /* ---------------- SCORE HANDLING ---------------- */
+  /* ───────────────────── PICK HANDLING ───────────────────── */
 
   const handlePick = (side: "jekyll" | "hyde") => {
     setScores((prev) => ({
@@ -68,17 +89,62 @@ export default function Page() {
       [side]: prev[side] + 1,
     }));
 
+    setChoices((prev) => [
+      ...prev,
+      { dilemma, picked: side, novel: currentNovel },
+    ]);
+
     setDilemma("");
+    setCurrentNovel(undefined);
     setView("input");
   };
+
+  /* ───────────────────── FINAL ANALYSIS ───────────────────── */
+
+  const handleFinalize = async () => {
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "final",
+          choices,
+          jekyllCount: scores.jekyll,
+          hydeCount: scores.hyde,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Final analysis error:", data);
+        return;
+      }
+
+      // FinalScreen will receive this via choices + scores,
+      // or you can store separate finalAnalysis state if needed
+
+      setView("final");
+    } catch (err) {
+      console.error("Final fetch failed:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ───────────────────── RESET ───────────────────── */
 
   const resetAll = () => {
     setDilemma("");
+    setCurrentNovel(undefined);
     setScores({ jekyll: 0, hyde: 0 });
+    setChoices([]);
     setView("input");
   };
 
-  /* ---------------- RENDER ---------------- */
+  /* ───────────────────── RENDER ───────────────────── */
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans overflow-x-hidden">
@@ -99,6 +165,7 @@ export default function Page() {
             dilemma={dilemma}
             setDilemma={setDilemma}
             onGenerate={handleGenerate}
+            onDilemmaSelect={handleDilemmaSelect}
             consequencesOn={consequencesOn}
             setConsequencesOn={setConsequencesOn}
             jekyllScore={scores.jekyll}
@@ -117,124 +184,16 @@ export default function Page() {
             consequencesOn={consequencesOn}
             onPick={handlePick}
             onBack={() => setView("input")}
-            onFinish={() => setView("final")}
+            onFinish={handleFinalize}
           />
         )}
-
-        {/* CHARACTER VIEW (INLINE — NO ResultCharacter) */}
-        {view === "character" && (() => {
-          const isHydeDominant = scores.hyde > scores.jekyll;
-          const isJekyll = !isHydeDominant;
-
-          const data = isHydeDominant
-            ? aiData.hyde
-            : aiData.jekyll;
-
-          return (
-            <div
-              className={`h-screen w-full relative overflow-hidden transition-all duration-1000 ${
-                isHydeDominant ? "bg-red-950/20" : "bg-blue-950/20"
-              }`}
-            >
-              {/* Top Bar */}
-              <div className="absolute top-0 left-0 right-0 z-50 flex justify-between px-10 py-10">
-                <button
-                  onClick={() => setView("split")}
-                  className="text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white transition-all"
-                >
-                  ← Merge Perspectives
-                </button>
-
-                <div className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">
-                  Dominance:{" "}
-                  <span className={isHydeDominant ? "text-red-500" : "text-blue-500"}>
-                    {isHydeDominant ? "Impulse" : "Reason"}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setView("final")}
-                  className="bg-white text-black px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl"
-                >
-                  Finalize
-                </button>
-              </div>
-
-              {/* Main Card */}
-              <div className="flex items-center justify-center h-full pt-10 px-8">
-                <div className="relative w-full max-w-5xl h-[78vh] rounded-[48px] border border-white/10 overflow-hidden">
-                  {/* Image */}
-                  <img
-                    src={isHydeDominant ? "/hyde.png" : "/jekyll.png"}
-                    alt="character"
-                    className={`pointer-events-none absolute bottom-0 h-[85%] w-auto object-contain opacity-60 ${
-                      isJekyll ? "left-[-3%]" : "right-[-3%]"
-                    }`}
-                  />
-
-                  {/* Content */}
-                  <div className="relative z-10 h-full flex flex-col justify-end p-16">
-                    <h2
-                      className={`text-xl font-black tracking-[0.4em] ${
-                        isJekyll
-                          ? "text-blue-400"
-                          : "text-red-600 font-serif"
-                      }`}
-                    >
-                      {isJekyll ? "JEKYLL" : "HYDE"}
-                    </h2>
-
-                    <h3
-                      className={`mt-6 text-6xl font-extrabold leading-tight tracking-tighter ${
-                        isJekyll ? "" : "font-serif uppercase"
-                      }`}
-                    >
-                      {data.title}
-                    </h3>
-
-                    <p className="mt-6 text-lg text-white/70 leading-relaxed max-w-3xl">
-                      {data.advice}
-                    </p>
-
-                    {consequencesOn && (
-                      <div className="mt-10 grid grid-cols-2 gap-10 pt-10 border-t border-white/10 max-w-3xl">
-                        <div>
-                          <div className="text-xs uppercase opacity-40">
-                            Short-term
-                          </div>
-                          <p>{data.short_term}</p>
-                        </div>
-                        <div>
-                          <div className="text-xs uppercase opacity-40">
-                            Long-term
-                          </div>
-                          <p>{data.long_term}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() =>
-                        handlePick(isJekyll ? "jekyll" : "hyde")
-                      }
-                      className={`mt-8 w-fit rounded-full px-6 py-2 text-xs font-black uppercase tracking-widest ${
-                        isJekyll ? "bg-blue-600" : "bg-red-700"
-                      }`}
-                    >
-                      Pick {isJekyll ? "Reason" : "Impulse"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
 
         {/* FINAL VIEW */}
         {view === "final" && (
           <FinalScreen
             jekyllCount={scores.jekyll}
             hydeCount={scores.hyde}
+            choices={choices}
             onRestart={resetAll}
           />
         )}
