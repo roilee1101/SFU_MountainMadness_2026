@@ -123,8 +123,7 @@ Rules:
 - Create TWO responses:
   - jekyll: empathetic, ethical, long-term thinking.
   - hyde: self-interested, reputation-focused, short-term thinking.
-- Hyde must NOT include illegal instructions, violence, or harmful behavior.
-- Keep each advice under 100 words.
+- Keep each advice under 50 words, 3-4 sentences.
 ${consequencesOn ? "- Include short_term and long_term outcomes." : ""}
 
 Return ONLY valid JSON:

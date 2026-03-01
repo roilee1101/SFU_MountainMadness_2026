@@ -1,7 +1,7 @@
 export type NovelDilemma = {
   id: string;
   novel: string;
-  character: strin
+  character: string;
   situation: string;
   prompt: string;
 };

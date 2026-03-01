@@ -8,7 +8,7 @@ interface Props {
   setDilemma: (v: string) => void;
   onGenerate: () => void;
 
-  // optional feature (merge-safe): if parent doesn't care, it can pass a no-op
+  // optional: parent can ignore
   onDilemmaSelect?: (prompt: string, novel?: string) => void;
 
   consequencesOn: boolean;
@@ -16,6 +16,8 @@ interface Props {
   jekyllScore: number;
   hydeScore: number;
 }
+
+type Tab = "custom" | "novels";
 
 export default function InputScreen({
   dilemma,
@@ -27,54 +29,51 @@ export default function InputScreen({
   jekyllScore,
   hydeScore,
 }: Props) {
-  // ---- ratios (fixes your undefined vars) ----
+  const [tab, setTab] = useState<Tab>("custom");
+
+  // ratios (fixes your earlier undefined vars)
   const { jekyllRatio, hydeRatio } = useMemo(() => {
     const total = jekyllScore + hydeScore;
     if (total === 0) return { jekyllRatio: 0.5, hydeRatio: 0.5 };
-    return {
-      jekyllRatio: jekyllScore / total,
-      hydeRatio: hydeScore / total,
-    };
+    return { jekyllRatio: jekyllScore / total, hydeRatio: hydeScore / total };
   }, [jekyllScore, hydeScore]);
 
-  // ---- Novel dilemmas picker (merge feature) ----
-  const [selectedNovel, setSelectedNovel] = useState<string>("");
-
-  const novelOptions = useMemo(() => {
-    // Handles either shape:
-    // 1) [{ novel: "...", prompt: "..." }, ...]
-    // 2) { "Novel Title": ["prompt1", "prompt2"] }
-    if (Array.isArray(NOVEL_DILEMMAS)) {
-      const novels = Array.from(new Set(NOVEL_DILEMMAS.map((d: any) => d.novel).filter(Boolean)));
-      return novels;
-    }
-    if (NOVEL_DILEMMAS && typeof NOVEL_DILEMMAS === "object") {
-      return Object.keys(NOVEL_DILEMMAS as any);
-    }
-    return [];
+  // novel cards
+  const novels = useMemo(() => {
+    return Array.from(new Set(NOVEL_DILEMMAS.map((d) => d.novel))).sort();
   }, []);
 
-  const getPromptsForNovel = (novel: string) => {
-    if (!novel) return [];
-    if (Array.isArray(NOVEL_DILEMMAS)) {
-      return NOVEL_DILEMMAS.filter((d: any) => d.novel === novel).map((d: any) => d.prompt);
+  const dilemmasByNovel = useMemo(() => {
+    const map = new Map<string, typeof NOVEL_DILEMMAS>();
+    for (const d of NOVEL_DILEMMAS) {
+      const arr = map.get(d.novel) ?? [];
+      arr.push(d);
+      map.set(d.novel, arr);
     }
-    const obj = NOVEL_DILEMMAS as any;
-    return Array.isArray(obj[novel]) ? obj[novel] : [];
+    return map;
+  }, []);
+
+  const pickRandomFromNovel = (novel: string) => {
+    const list = dilemmasByNovel.get(novel) ?? [];
+    if (!list.length) return;
+    const d = list[Math.floor(Math.random() * list.length)];
+    setDilemma(d.prompt);
+    onDilemmaSelect?.(d.prompt, d.novel);
+    // optional UX: jump back to custom tab so they can edit it
+    setTab("custom");
   };
 
-  const prompts = useMemo(() => getPromptsForNovel(selectedNovel), [selectedNovel]);
-
-  const pickRandomPrompt = () => {
-    if (!prompts.length) return;
-    const prompt = prompts[Math.floor(Math.random() * prompts.length)];
-    setDilemma(prompt);
-    onDilemmaSelect?.(prompt, selectedNovel);
+  const pickRandomGlobal = () => {
+    if (!NOVEL_DILEMMAS.length) return;
+    const d = NOVEL_DILEMMAS[Math.floor(Math.random() * NOVEL_DILEMMAS.length)];
+    setDilemma(d.prompt);
+    onDilemmaSelect?.(d.prompt, d.novel);
+    setTab("custom");
   };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
-      {/* Top Bar with Live Scores */}
+      {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-12">
         <div className="flex gap-10 items-center">
           <div className="flex flex-col">
@@ -97,8 +96,6 @@ export default function InputScreen({
             <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 mb-2 font-serif italic">
               Impulse
             </span>
-
-            {/* scale animation now works because ratios exist */}
             <div
               className={`flex items-baseline gap-2 transition-all duration-500 ${
                 hydeRatio > jekyllRatio ? "scale-110" : "scale-100"
@@ -136,9 +133,8 @@ export default function InputScreen({
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6">
-        <div className="mb-20 text-center">
+      {/* Main */}
+        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 pt-44 pb-24">        <div className="mb-12 text-center">
           <h1 className="text-8xl md:text-9xl font-black tracking-tighter flex items-center justify-center select-none">
             <span className="text-blue-500 animate-[bounce_5s_infinite]">Jekyll</span>
             <span className="mx-8 text-2xl font-light italic text-neutral-800 lowercase font-serif font-sans">
@@ -150,44 +146,89 @@ export default function InputScreen({
           </h1>
         </div>
 
-        {/* Novel dilemma picker (optional UI, won’t break anything) */}
-        {novelOptions.length > 0 && (
-          <div className="mb-8 w-full max-w-3xl flex items-center gap-4">
-            <select
-              value={selectedNovel}
-              onChange={(e) => setSelectedNovel(e.target.value)}
-              className="flex-1 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm text-white outline-none"
-            >
-              <option value="" className="bg-neutral-950">
-                Pick a novel (optional)
-              </option>
-              {novelOptions.map((n) => (
-                <option key={n} value={n} className="bg-neutral-950">
-                  {n}
-                </option>
-              ))}
-            </select>
+        {/* Tabs */}
+        <div className="w-full max-w-4xl">
+          <div className="flex items-center justify-between">
+            <div className="inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1">
+              <button
+                type="button"
+                onClick={() => setTab("custom")}
+                className={`rounded-full px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em] transition-all ${
+                  tab === "custom"
+                    ? "bg-white text-black"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                Custom
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("novels")}
+                className={`rounded-full px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em] transition-all ${
+                  tab === "novels"
+                    ? "bg-white text-black"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                Novels
+              </button>
+            </div>
 
+            {/* Global random */}
             <button
               type="button"
-              onClick={pickRandomPrompt}
-              disabled={!selectedNovel || prompts.length === 0}
-              className="rounded-full border border-white/10 bg-black/40 px-6 py-3 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all disabled:opacity-30"
+              onClick={pickRandomGlobal}
+              className="rounded-full border border-white/10 bg-black/40 px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em] hover:bg-white hover:text-black transition-all"
             >
-              Random prompt
+              Random
             </button>
           </div>
-        )}
 
-        <div className="w-full max-w-3xl relative">
-          <textarea
-            value={dilemma}
-            onChange={(e) => setDilemma(e.target.value)}
-            placeholder="Describe your inner conflict..."
-            className="h-64 w-full resize-none rounded-[40px] border border-white/5 bg-white/[0.02] p-12 text-2xl text-white placeholder:text-neutral-800 focus:outline-none focus:bg-white/[0.05] transition-all duration-700"
-          />
+          {/* Tab content */}
+          <div className="mt-6">
+            {tab === "custom" ? (
+              <div className="w-full">
+                <textarea
+                  value={dilemma}
+                  onChange={(e) => setDilemma(e.target.value)}
+                  placeholder="Describe your inner conflict..."
+                  className="h-64 w-full resize-none rounded-[40px] border border-white/5 bg-white/[0.02] p-12 text-2xl text-white placeholder:text-neutral-800 focus:outline-none focus:bg-white/[0.05] transition-all duration-700"
+                />
+              </div>
+            ) : (
+              <div className="rounded-[40px] border border-white/10 bg-white/[0.02] p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-[10px] font-black uppercase tracking-[0.35em] text-white/30">
+                    Pick a novel
+                  </div>
+                  <div className="text-[10px] text-white/30">
+                    Click a card to load a random prompt
+                  </div>
+                </div>
 
-          <div className="mt-14 flex justify-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {novels.map((novel) => (
+                    <button
+                      key={novel}
+                      type="button"
+                      onClick={() => pickRandomFromNovel(novel)}
+                      className="group text-left rounded-[28px] border border-white/10 bg-black/30 p-5 transition-all hover:bg-white/10 hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                      <div className="text-sm font-black tracking-tight text-white">
+                        {novel}
+                      </div>
+                      <div className="mt-2 text-[11px] uppercase tracking-[0.25em] text-white/30 group-hover:text-white/40">
+                        Load random prompt
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Generate */}
+          <div className="mt-10 flex justify-center">
             <button
               onClick={onGenerate}
               disabled={!dilemma.trim()}
