@@ -39,5 +39,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## API Set-Up
 Add Gemini key:
 .env.local
-
-GEMINI_API_KEY=AIzaSyBmU_JONSwITS0CyDZJvhArM8RDcdCYp88
