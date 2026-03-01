@@ -1,162 +1,119 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import InputScreen from "@/components/InputScreen";
 import ResultSplit from "@/components/ResultSplit";
 import ResultCharacter from "@/components/ResultCharacter";
 import FinalScreen from "@/components/FinalScreen";
 
-type Stage = "input" | "resultA" | "resultB" | "final";
-
-type Side = {
-  title: string;
-  advice: string;
-  short_term?: string;
-  long_term?: string;
-};
-
-type ApiResponse = {
-  hyde: Side;
-  jackal: Side;
-};
-
 export default function Page() {
-  const [stage, setStage] = useState<Stage>("input");
+  /* --- 1. State Management --- */
   const [dilemma, setDilemma] = useState("");
+  const [view, setView] = useState<"input" | "split" | "character" | "final">("input");
+  const [scores, setScores] = useState({ jekyll: 0, hyde: 0 });
   const [consequencesOn, setConsequencesOn] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [aiData, setAiData] = useState({
+    jekyll: { title: "", advice: "", short_term: "", long_term: "" },
+    hyde: { title: "", advice: "", short_term: "", long_term: "" }
+  });
 
-  const [jekyllCount, setJekyllCount] = useState(0);
-  const [hydeCount, setHydeCount] = useState(0);
-
-  async function generate() {
+  /* --- 2. Logic: AI Analysis Generation --- */
+  const handleGenerate = async () => {
     if (!dilemma.trim()) return;
-
-    setLoading(true);
-    setErr(null);
-
+    setIsLoading(true);
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dilemma, consequencesOn }),
+      await new Promise(resolve => setTimeout(resolve, 2000)); 
+      setAiData({
+        jekyll: {
+          title: "The Path of Reason",
+          advice: `In response to "${dilemma}", Jekyll suggests moral integrity.`,
+          short_term: "Immediate peace of mind.", long_term: "A foundation of trust."
+        },
+        hyde: {
+          title: "The Impulse of Desire",
+          advice: `Hyde views "${dilemma}" as a chance for instant gain.`,
+          short_term: "Instant gratification.", long_term: "Social isolation."
+        }
       });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Generate failed");
-
-      setData(json);
-      setStage("resultA");
-    } catch (e: any) {
-      setErr(e?.message ?? "Something went wrong");
-      setData(null);
+      setView("split");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }
+  };
 
-  function pick(p: "jekyll" | "hyde") {
-    if (p === "jekyll") setJekyllCount((c) => c + 1);
-    if (p === "hyde") setHydeCount((c) => c + 1);
+  /* --- 3. Interaction: Pick & Reset Loop --- */
+  const handlePick = (side: "jekyll" | "hyde") => {
+    setScores(prev => ({ ...prev, [side]: prev[side] + 1 })); 
+    setView("input"); 
+    setDilemma("");   
+  };
 
-    setStage("input");
-  }
-
-  function restart() {
-    setStage("input");
+  const resetAll = () => {
     setDilemma("");
-    setData(null);
-    setErr(null);
-    setJekyllCount(0);
-    setHydeCount(0);
-  }
+    setScores({ jekyll: 0, hyde: 0 });
+    setView("input");
+  };
 
   return (
-    <>
-      {stage === "input" && (
-        <div className="relative">
-          {/* Top Right Controls */}
-          <div className="absolute right-6 top-6 z-10 flex items-center gap-6 text-sm">
-            <div className="text-white/70">
-              Jekyll:{" "}
-              <span className="text-blue-300 font-semibold">
-                {jekyllCount}
-              </span>{" "}
-              Hyde:{" "}
-              <span className="text-red-300 font-semibold">
-                {hydeCount}
-              </span>
-            </div>
-
-            <label className="flex items-center gap-2 text-white/80">
-              <input
-                type="checkbox"
-                checked={consequencesOn}
-                onChange={(e) => setConsequencesOn(e.target.checked)}
-              />
-              Consequences
-            </label>
-
-            <button
-              onClick={() => setStage("final")}
-              disabled={jekyllCount + hydeCount === 0}
-              className="rounded-lg border border-white/20 px-3 py-2 hover:bg-white/10 disabled:opacity-40"
-            >
-              Finish
-            </button>
+    <div className="min-h-screen bg-[#050505] text-white font-sans overflow-x-hidden">
+      <main className="relative">
+        {isLoading && (
+          <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-3xl">
+            <div className="h-24 w-24 animate-spin rounded-full border-t-2 border-blue-500"></div>
+            <p className="mt-10 font-mono text-[10px] uppercase tracking-[1em] text-white/40">Measuring Duality...</p>
           </div>
+        )}
 
-          <InputScreen
-            dilemma={dilemma}
-            setDilemma={setDilemma}
-            onGenerate={generate}
+        {view === "input" && (
+          <InputScreen 
+            dilemma={dilemma} setDilemma={setDilemma} onGenerate={handleGenerate}
+            consequencesOn={consequencesOn} setConsequencesOn={setConsequencesOn}
+            jekyllScore={scores.jekyll} hydeScore={scores.hyde} 
           />
+        )}
 
-          {(loading || err) && (
-            <div className="absolute inset-x-0 bottom-10 flex justify-center">
-              <div className="rounded-xl border border-white/15 bg-black/60 px-4 py-2 text-sm text-white">
-                {loading ? "Generating..." : err}
+        {view === "split" && (
+          <ResultSplit 
+            dilemma={dilemma} jekyll={aiData.jekyll} hyde={aiData.hyde}
+            jekyllCount={scores.jekyll} hydeCount={scores.hyde}
+            consequencesOn={consequencesOn} onPick={handlePick}
+            onNextLayout={() => setView("character")} onBack={() => setView("input")} onFinish={() => setView("final")}
+          />
+        )}
+
+        {/* --- Layout B: The Soul's Reflection --- */}
+        {view === "character" && (
+          <div className={`h-screen w-full relative transition-all duration-1000 ${
+            scores.hyde > scores.jekyll ? "bg-red-950/20" : "bg-blue-950/20"
+          }`}>
+            <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+
+            <div className="absolute top-0 left-0 right-0 z-50 flex justify-between px-10 py-10">
+              <button onClick={() => setView("split")} className="text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white transition-all">← Merge Perspectives</button>
+              <div className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">
+                Dominance: <span className={scores.hyde > scores.jekyll ? "text-red-500" : "text-blue-500"}>{scores.hyde > scores.jekyll ? "Impulse" : "Reason"}</span>
               </div>
+              <button onClick={() => setView("final")} className="bg-white text-black px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">Finalize</button>
             </div>
-          )}
-        </div>
-      )}
 
-      {stage === "resultA" && data && (
-        <ResultSplit
-          dilemma={dilemma}
-          jekyll={data.jackal}
-          hyde={data.hyde}
-          consequencesOn={consequencesOn}
-          onPick={pick}
-          onNextLayout={() => setStage("resultB")}
-          onBack={() => setStage("input")}
-          onFinish={() => setStage("final")}
-        />
-      )}
+            <div className="flex items-center justify-center h-full pt-10">
+               <ResultCharacter 
+                 type={scores.hyde > scores.jekyll ? "hyde" : "jekyll"} 
+                 data={scores.hyde > scores.jekyll ? aiData.hyde : aiData.jekyll}
+                 isHovered={true}
+                 consequencesOn={consequencesOn}
+                 onPick={() => handlePick(scores.hyde > scores.jekyll ? "hyde" : "jekyll")}
+               />
+            </div>
+          </div>
+        )}
 
-      {stage === "resultB" && data && (
-        <ResultCharacter
-          dilemma={dilemma}
-          jekyll={data.jackal}
-          hyde={data.hyde}
-          consequencesOn={consequencesOn}
-          onPick={pick}
-          onBackToLayoutA={() => setStage("resultA")}
-          onFinish={() => setStage("final")}
-        />
-      )}
-
-      {stage === "final" && (
-        <FinalScreen
-          jekyllCount={jekyllCount}
-          hydeCount={hydeCount}
-          onRestart={restart}
-        />
-      )}
-    </>
+        {view === "final" && (
+          <FinalScreen jekyllCount={scores.jekyll} hydeCount={scores.hyde} onRestart={resetAll} />
+        )}
+      </main>
+    </div>
   );
 }
