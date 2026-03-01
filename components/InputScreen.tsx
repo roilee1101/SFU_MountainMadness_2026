@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { NOVEL_DILEMMAS } from "@/data/novelDilemmas";
 
 interface Props {
@@ -30,6 +30,117 @@ export default function InputScreen({
   hydeScore,
 }: Props) {
   const [tab, setTab] = useState<Tab>("custom");
+
+  // --- Speech-to-text via ElevenLabs Scribe ---
+  type MicStatus = "idle" | "recording" | "transcribing" | "error";
+  const [micStatus, setMicStatus] = useState<MicStatus>("idle");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioCtxRef    = useRef<AudioContext | null>(null);
+  const analyserRef    = useRef<AnalyserNode | null>(null);
+  const vadFrameRef    = useRef<number | null>(null);
+
+  const SILENCE_THRESHOLD = 10;  // RMS below this = silence
+  const SILENCE_DELAY_MS  = 1800; // stop after 1.8s of silence
+
+  const stopRecording = () => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (vadFrameRef.current)    cancelAnimationFrame(vadFrameRef.current);
+    mediaRecorderRef.current?.stop();
+  };
+
+  const handleMic = async () => {
+    if (micStatus === "recording") { stopRecording(); return; }
+    if (micStatus === "transcribing") return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunksRef.current = [];
+
+      // --- VAD setup ---
+      const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+      const source   = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      const dataArray = new Uint8Array(analyser.fftSize);
+
+      const checkSilence = () => {
+        analyser.getByteTimeDomainData(dataArray);
+        // compute RMS
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const v = (dataArray[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / dataArray.length) * 100;
+
+        if (rms > SILENCE_THRESHOLD) {
+          // voice detected — reset silence timer
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        } else {
+          // silence — start timer if not already running
+          if (!silenceTimerRef.current) {
+            silenceTimerRef.current = setTimeout(() => {
+              stopRecording();
+            }, SILENCE_DELAY_MS);
+          }
+        }
+        vadFrameRef.current = requestAnimationFrame(checkSilence);
+      };
+      vadFrameRef.current = requestAnimationFrame(checkSilence);
+      // --- end VAD ---
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        if (vadFrameRef.current)    cancelAnimationFrame(vadFrameRef.current);
+        audioCtx.close();
+        stream.getTracks().forEach((t) => t.stop());
+        setMicStatus("transcribing");
+        try {
+          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("file", blob, "recording.webm");
+          formData.append("model_id", "scribe_v1");
+
+          const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ?? "";
+          const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+            method: "POST",
+            headers: { "xi-api-key": apiKey },
+            body: formData,
+          });
+
+          if (!res.ok) throw new Error(`ElevenLabs STT error ${res.status}`);
+          const json = await res.json();
+          const text: string = json.text ?? "";
+          if (text.trim()) setDilemma((prev) => (prev.trim() ? prev + " " + text.trim() : text.trim()));
+          setMicStatus("idle");
+        } catch (err) {
+          console.error(err);
+          setMicStatus("error");
+          setTimeout(() => setMicStatus("idle"), 2500);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setMicStatus("recording");
+    } catch (err) {
+      console.error(err);
+      setMicStatus("error");
+      setTimeout(() => setMicStatus("idle"), 2500);
+    }
+  };
 
   // ratios (fixes your earlier undefined vars)
   const { jekyllRatio, hydeRatio } = useMemo(() => {
@@ -228,7 +339,7 @@ export default function InputScreen({
           </div>
 
           {/* Generate */}
-          <div className="mt-10 flex justify-center">
+          <div className="mt-10 flex items-center justify-center gap-4">
             <button
               onClick={onGenerate}
               disabled={!dilemma.trim()}
@@ -236,6 +347,46 @@ export default function InputScreen({
             >
               <span className="relative z-10">Analyse Duality</span>
               <div className="absolute inset-0 z-0 w-0 bg-gradient-to-r from-blue-600 via-purple-600 to-red-600 transition-all duration-700 group-hover:w-full" />
+            </button>
+
+            {/* Mic button */}
+            <button
+              onClick={handleMic}
+              disabled={micStatus === "transcribing"}
+              title={
+                micStatus === "recording" ? "Stop recording"
+                : micStatus === "transcribing" ? "Transcribing..."
+                : micStatus === "error" ? "Error — try again"
+                : "Speak your dilemma"
+              }
+              className={`relative flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300 disabled:cursor-not-allowed
+                ${micStatus === "recording"
+                  ? "border-red-500 bg-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse"
+                  : micStatus === "transcribing"
+                  ? "border-white/20 bg-white/5"
+                  : micStatus === "error"
+                  ? "border-red-500 bg-red-500/10"
+                  : "border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40"
+                }`}
+            >
+              {micStatus === "transcribing" && (
+                <svg className="w-5 h-5 animate-spin text-white/50" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+              )}
+              {micStatus === "error" && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-400">
+                  <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+                </svg>
+              )}
+              {(micStatus === "idle" || micStatus === "recording") && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                  className={`w-5 h-5 ${micStatus === "recording" ? "text-red-400" : "text-white/60"}`}>
+                  <path d="M8.25 4.5a3.75 3.75 0 1 1 7.5 0v8.25a3.75 3.75 0 1 1-7.5 0V4.5Z" />
+                  <path d="M6 10.5a.75.75 0 0 1 .75.75v1.5a5.25 5.25 0 1 0 10.5 0v-1.5a.75.75 0 0 1 1.5 0v1.5a6.751 6.751 0 0 1-6 6.709v2.291h3a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1 0-1.5h3v-2.291a6.751 6.751 0 0 1-6-6.709v-1.5A.75.75 0 0 1 6 10.5Z" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
